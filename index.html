@@ -200,6 +200,10 @@
       <button onclick="calculateTasks()">Calculate</button>
       <button onclick="exportTasks()">Export CSV</button>
     </div>
+    <div style="text-align:center; margin-top: 15px;">
+       <h3>Total Hours: <span id="totalTaskHours">0</span></h3>
+      <h3>Total Income: <span id="totalTaskIncome">R 0.00</span></h3>
+    </div>
   </div>
 
   <script>
@@ -281,40 +285,66 @@
 
     // Calculate hours and income for each task row
     function calculateTasks() {
-      const rows = document.querySelectorAll("#taskBody tr");
-      rows.forEach(row => {
-        const start = row.children[3].children[0].value;
-        const end = row.children[4].children[0].value;
-        const rate = parseFloat(row.children[6].children[0].value) || 0;
-        if (start && end) {
-          const [sh, sm] = start.split(":").map(Number);
-          const [eh, em] = end.split(":").map(Number);
-          let startMins = sh * 60 + sm;
-          let endMins = eh * 60 + em;
-          let diff = (endMins - startMins) / 60;
-          diff = diff < 0 ? 0 : diff;
-          row.children[5].children[0].value = diff.toFixed(2);
-          row.children[7].children[0].value = "R " + (diff * rate).toFixed(2);
-        }
-      });
+  const rows = document.querySelectorAll("#taskBody tr");
+  let totalHours = 0;
+  let totalIncome = 0;
+
+  rows.forEach(row => {
+    const start = row.children[3].children[0].value;
+    const end = row.children[4].children[0].value;
+    const rate = parseFloat(row.children[6].children[0].value) || 0;
+    if (start && end) {
+      const [sh, sm] = start.split(":").map(Number);
+      const [eh, em] = end.split(":").map(Number);
+      let startMins = sh * 60 + sm;
+      let endMins = eh * 60 + em;
+      let diff = (endMins - startMins) / 60;
+      diff = diff < 0 ? 0 : diff;
+      row.children[5].children[0].value = diff.toFixed(2);
+      const income = diff * rate;
+      row.children[7].children[0].value = "R " + income.toFixed(2);
+
+      totalHours += diff;
+      totalIncome += income;
     }
+  });
+
+  document.getElementById("totalTaskHours").textContent = totalHours.toFixed(2);
+  document.getElementById("totalTaskIncome").textContent = "R " + totalIncome.toFixed(2);
+}
+
 
     // Export tasks to CSV
     function exportTasks() {
-      const rows = [["Task", "Description", "Date", "Start", "End", "Hours", "Rate", "Income"]];
-      document.querySelectorAll("#taskBody tr").forEach(row => {
-        const values = Array.from(row.children).map(td => td.children[0].value);
-        rows.push(values);
-      });
-      let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "task_log.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  const rows = document.querySelectorAll("#taskBody tr");
+  let csv = "Client,Task,Date,Start,End,Hours,Rate,Income\n";
+  let totalHours = 0;
+  let totalIncome = 0;
+
+  rows.forEach(row => {
+    const data = [];
+    for (let i = 0; i < 8; i++) {
+      let val = row.children[i].children[0].value || "";
+      if (i === 7 && val.startsWith("R ")) val = val.slice(2); // remove "R " from income
+      data.push(val.replace(/,/g, "")); // remove commas to avoid breaking CSV
     }
+    csv += data.join(",") + "\n";
+
+    totalHours += parseFloat(data[5]) || 0;
+    totalIncome += parseFloat(data[7]) || 0;
+  });
+
+  // Add totals row
+  csv += `,,,,Total,${totalHours.toFixed(2)},,${totalIncome.toFixed(2)}\n`;
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "task_log.csv";
+  a.click();
+}
+
 
     window.onload = calculateExpenditure;
   </script>
